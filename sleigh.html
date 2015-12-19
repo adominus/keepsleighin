@@ -1,0 +1,412 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Keep Sleighin'</title>
+        <script src="//cdn.jsdelivr.net/phaser/2.2.2/phaser.min.js"></script>
+    </head>
+    <body>
+
+    <script type="text/javascript">
+
+	var MAX_ELVES = 10; 
+	var MAX_LIVES = 3; 
+	var MAX_OBSTACLES = 20; 
+
+	var elfVelocity = 180; 
+
+	var elves = [];
+	var elvesKilled = 0; 
+
+	var obstacles = []; 
+	var obstaclesHit = 0; 
+
+	var scoreString; 
+	var scoreText; 
+
+	var livesString; 
+	var livesText; 
+
+	function helper_getOffscreenY(game) {
+		return -(game.rnd.between(32, game.world.height)); 
+	}
+
+	function helper_getCurrentLives() {
+		return MAX_LIVES - obstaclesHit; 
+	}
+	
+	function getElf(game) {
+		/*
+		frame = game.rnd.between(0, 35); 
+
+		if (frame === 17) 
+		{
+			frame = 1;
+		}
+		*/
+
+		var x = game.rnd.between(0, game.world.width); 
+		var y = helper_getOffscreenY(game); 
+
+		var elfy = game.add.sprite(x, y, 'veggies', 17); 
+
+		game.physics.arcade.enable(elfy); 
+		elfy.body.velocity.y = elfVelocity; 
+		elfy.anchor.setTo(0.5, 0.5); 
+
+		elfy.checkWorldBounds = true; 
+		elfy.events.onOutOfBounds.add(resetFallingElf, this); 
+
+		return elfy;
+	}
+
+	function resetFallingElf(fallingElf) {
+		if(!hasGameStarted) {
+			fallingElf.kill(); 
+			return; 
+		}
+		if(fallingElf.y < 0) return; 
+
+		if(elves.indexOf(fallingElf) < 0) {
+			var newElf = getElf(game); 
+			group.add(newElf); 
+			elves.push(newElf); 
+		}
+		else {
+			var y = helper_getOffscreenY(game);
+			fallingElf.y = y;
+		}
+	}
+
+
+	function getObstacle(game) {
+		var x = game.rnd.between(0, game.world.width); 
+		var y = helper_getOffscreenY(game);
+
+		var obstacle = game.add.sprite(x, y, 'veggies', 2); 
+
+		game.physics.arcade.enable(obstacle); 
+		obstacle.body.velocity.y = elfVelocity; 
+		obstacle.anchor.setTo(0.5, 0.5); 
+
+		obstacle.checkWorldBounds = true; 
+		obstacle.events.onOutOfBounds.add(obstacleOutOfBounds, this); 
+
+		return obstacle; 
+	}
+
+	function obstacleOutOfBounds(obs) {
+		if(!hasGameStarted) {
+			obs.kill(); 
+			return; 
+		}
+
+		if(obs.y < 0) return; 
+
+		if(obstacles.indexOf(obs) < 0) 
+		{
+			var newObstacle = getObstacle(game); 
+			groupObstacles.add(newObstacle); 
+			obstacles.push(newObstacle); 
+		}
+		else {
+			var y = helper_getOffscreenY(game);
+			obs.y = y;
+		}
+	}
+	//*/
+
+WebFontConfig = {
+    active: function() { game.time.events.add(Phaser.Timer.SECOND, createMainTitle, this); },
+    google: {
+      families: ['Butcherman', 'Frijole']
+    }
+};
+
+	var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', {preload: preload, create: create, update: update}); 
+
+	function preload() {
+		// Setup Fonts
+		game.load.script('webfont', '//ajax.googleapis.com/ajax/libs/webfont/1.4.7/webfont.js');
+
+		game.load.image('phaser', 'Images/phaser-dude.png'); 
+		game.load.image('empty-sleigh', 'Images/Empty-Sleigh.png'); 
+		game.load.image('empty-sleigh-small', 'Images/Empty-Sleigh-Small@2x.png'); 
+
+		game.load.spritesheet('veggies', 'Images/fruitnveg32wh37.png', 32, 32); 
+		game.load.audio('sfx', 'Sounds/fx_mixdown.ogg'); 
+		game.load.audio('magic', 'Sounds/magical_horror_audiosprite.ogg');
+		game.load.audio('sword', 'Sounds/sword.mp3'); 
+		game.load.audio('vilhelm', 'Sounds/Wilhelm_Scream.ogg'); 
+	}
+
+	var fxMain; 
+	var fxFireballs; 
+	var fxSword; 
+	var fxVilhelm; 
+
+	var sprite;
+	var group;
+	var groupObstacles; 
+	var cursors; 
+
+	var mainTitleText; 
+	var	mainTitleSubtext; 
+
+	var hasGameStarted = false; 
+
+	function create_Audio() {
+		fxMain = game.add.audio('sfx');
+		fxMain.allowMultiple = true;
+
+		fxMain.addMarker('alien death', 1, 1.0);
+		fxMain.addMarker('boss hit', 3, 0.5);
+		fxMain.addMarker('escape', 4, 3.2);
+		fxMain.addMarker('meow', 8, 0.5);
+		fxMain.addMarker('numkey', 9, 0.1);
+		fxMain.addMarker('ping', 10, 1.0);
+		fxMain.addMarker('death', 12, 4.2);
+		fxMain.addMarker('shot', 17, 1.0);
+		fxMain.addMarker('squit', 19, 0.3);
+
+		fxFireballs = game.add.audio('magic'); 
+
+		fxFireballs.allowMultiple = true; 
+		fxFireballs.addMarker('fire', 8, 5.2); 
+
+		fxSword = game.add.audio('sword'); 
+
+		fxVilhelm = game.add.audio('vilhelm'); 
+	}
+
+	function create() {
+		game.physics.startSystem(Phaser.Physics.ARCADE); 
+
+		game.stage.backgroundColor = '#0099cc'; 
+
+		// Setup Audio
+		create_Audio(); 
+
+		// Setup Groups 
+		group = game.add.group(); 
+		groupObstacles = game.add.group(); 
+
+		var space_key = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+		space_key.onDown.add(insertToken, this); 
+
+		cursors = game.input.keyboard.createCursorKeys(); 
+
+	}
+	
+	var emptySleigh;
+
+	function createMainTitle() {
+		emptySleigh = game.add.sprite(game.world.centerX, game.world.height - 280, 'empty-sleigh'); 
+		emptySleigh.anchor.setTo(0.5, 0); 
+		emptySleigh.scale.setTo(0.5, 0.5);
+
+		// Setup Title Screen 
+    	var styleButcherman = { font: "100px Butcherman", fill: "#fff" };
+
+	    mainTitleText = game.add.text(game.world.centerX, game.world.centerY - 100, "Keep Slayin'", styleButcherman);
+		mainTitleText.anchor.setTo(0.5, 0.5); 
+
+		var styleFrijole = { font: '30px Frijole', fill:"#fff" }; 
+		mainTitleSubtext = game.add.text(game.world.centerX, game.world.centerY, "Press space to slay", styleFrijole); 
+		mainTitleSubtext.anchor.setTo(0.5, 0.5); 
+
+	}
+
+	function insertToken() {
+		if(hasGameStarted) return; 
+		
+		if(MAX_LIVES - obstaclesHit <= 0) {
+			game.add.tween(mainSlainText).to( { alpha: 0 }, 1000, Phaser.Easing.Linear.None, true);
+			game.add.tween(sprite).to( { alpha: 1 }, 500, Phaser.Easing.Linear.None, true);
+
+			obstaclesHit = 0; 
+
+			hasGameStarted = true; 
+
+			scoreText.text = 'Score: 0'; 
+			livesText.text = livesString + helper_getCurrentLives(); 
+
+			// Setup Elves 
+			for (var i = 0; i < MAX_ELVES; i++) {
+				var elf = getElf(game); //new Vegetable(game); 
+				group.add(elf); 
+				elves.push(elf); 
+			}
+
+			// Setup Obstacles 
+			for (var i = 0; i < MAX_OBSTACLES; i++) {
+				var obsy = getObstacle(game); 
+				groupObstacles.add(obsy); 
+				obstacles.push(obsy); 
+			}
+		}
+		else {
+			game.add.tween(mainTitleText).to( { alpha: 0 }, 2000, Phaser.Easing.Linear.None, true);
+			game.add.tween(mainTitleSubtext).to( { alpha: 0 }, 2000, Phaser.Easing.Linear.None, true);
+			game.add.tween(emptySleigh).to( { alpha: 0 }, 500, Phaser.Easing.Linear.None, true);
+			game.add.tween(emptySleigh.scale).to( { x: 0.2, y: 0.2 }, 500, Phaser.Easing.Linear.None, true);
+		
+			fxFireballs.play('fire');
+
+			hasGameStarted = true; 
+
+			// Setup Score
+			scoreString = 'Score: '; 
+			scoreText = game.add.text(10, 10, scoreString + elvesKilled, { font: '30px Arial', fill: '#ddd' });
+
+			// Setup Lives
+			livesString = 'Lives: '; 
+			livesText = game.add.text(10, 40, livesString + helper_getCurrentLives(), { font: '30px Arial', fill: '#ddd' }); 
+
+			// Setup Elves 
+			for (var i = 0; i < MAX_ELVES; i++) {
+				var elf = getElf(game); //new Vegetable(game); 
+				group.add(elf); 
+				elves.push(elf); 
+			}
+
+			// Setup Obstacles 
+			for (var i = 0; i < MAX_OBSTACLES; i++) {
+				var obsy = getObstacle(game); 
+				groupObstacles.add(obsy); 
+				obstacles.push(obsy); 
+			}
+
+			sprite = game.add.sprite(game.world.centerX, game.world.height - 200, 'empty-sleigh-small'); 
+			sprite.anchor.setTo(0.5, 0.5); 
+			//sprite.scale.setTo(0.6, 0.6); 
+
+			game.physics.arcade.enable(sprite); 
+		}
+	}
+
+	var mainSlainText; 
+
+	function gameOver() {
+		fxVilhelm.play(); 
+		hasGameStarted = false; 
+		
+		game.add.tween(sprite).to( { alpha: 0 }, 200, Phaser.Easing.Linear.None, true);
+
+		if(mainSlainText == null) {
+    		var styleButcherman = { font: "100px Butcherman", fill: "#b8182b" };
+	    	mainSlainText = game.add.text(game.world.centerX, game.world.centerY - 100, "Slain", styleButcherman);
+			mainSlainText.anchor.setTo(0.5, 0.5); 
+		}
+		else {
+			mainSlainText.alpha = 1;
+		}
+
+		for(var i = 0; i < elves.length; i++) {
+			elves[i].kill(); 
+		}
+		elves = []; 
+
+		for(var i = 0; i < obstacles.length; i++) {
+			obstacles[i].kill(); 
+		}
+		obstacles = []; 
+	}
+
+	function update() {
+		if(hasGameStarted) {
+			game.physics.arcade.overlap(sprite, group, collisionHandler, null, this); 
+			game.physics.arcade.overlap(sprite, groupObstacles, obstacleCollisionHandler, null, this); 
+			sprite.body.velocity.x = 0;
+			sprite.body.velocity.y = 0; 
+
+			sprite.angle = 0; 
+
+			if(cursors.left.isDown) 
+			{	
+				sprite.body.velocity.x = -500; 
+				sprite.angle = -5; 
+			}
+			else if(cursors.right.isDown) 
+			{	
+				sprite.body.velocity.x = 500; 
+				sprite.angle = 5; 
+			}
+
+			if(cursors.up.isDown) 
+			{	
+				// sprite.body.velocity.y = -200; 
+			}
+			else if(cursors.down.isDown) 
+			{	
+				// sprite.body.velocity.y = 200; 
+			}
+		}
+		else {
+			if(sprite != null) {
+				sprite.body.velocity.x = 0;
+				sprite.body.velocity.y = 0; 
+				sprite.angle = 0; 
+			}
+		}
+	}
+
+	function obstacleCollisionHandler(player, collidedWith) {
+		if(obstacles.indexOf(collidedWith) >= 0) {
+			obstacles.splice(obstacles.indexOf(collidedWith), 1); 
+
+			obstaclesHit++; 
+			
+			if(obstaclesHit == MAX_LIVES) {
+				gameOver(); 
+				sprite.body.velocity.x = 0; 
+			}
+		
+			collidedWith.angle = 90;
+			collidedWith.frame = 10; 
+
+			fxMain.play('squit');
+
+			livesText.text = livesString + helper_getCurrentLives(); 
+		}
+	}
+
+	function collisionHandler(player, collidedWith) {
+		killedElf(collidedWith); 
+	}
+
+	function killedElf(elf) {
+		if(elves.indexOf(elf) >= 0) {
+			elves.splice(elves.indexOf(elf), 1); 
+
+			fxSword.play(); 
+
+			elf.angle = 90; 
+			elf.frame = 11; 
+
+			elvesKilled++; 
+
+			scoreText.text = scoreString + (elvesKilled * 20);
+
+			if(elvesKilled == 10 || 
+				elvesKilled == 15 || 
+				elvesKilled == 23 || 
+				elvesKilled == 28 || 
+				elvesKilled == 33 || 
+				elvesKilled == 38) {
+				increaseDifficulty(); 
+			}
+		}
+	}
+
+	function increaseDifficulty() {
+		elfVelocity += 50; 
+		for(var i = 0; i < elves.length; i++) {
+			elves[i].body.velocity.y = elfVelocity; 
+		}
+	}
+
+    </script>
+
+    </body>
+</html>
