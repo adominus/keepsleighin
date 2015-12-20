@@ -9,9 +9,11 @@
 
     <script type="text/javascript">
 
-	var MAX_ELVES = 10; 
+	var MAX_ELVES = 4; 
 	var MAX_LIVES = 3; 
-	var MAX_OBSTACLES = 20; 
+	var MAX_OBSTACLES = 4; 
+
+	var HI_SCORE = 0; 
 
 	var elfVelocity = 180; 
 
@@ -48,7 +50,7 @@
 		var x = game.rnd.between(0, game.world.width); 
 		var y = helper_getOffscreenY(game); 
 
-		var elfy = game.add.sprite(x, y, 'veggies', 17); 
+		var elfy = game.add.sprite(x, y, 'elf-sprite', 0); 
 
 		game.physics.arcade.enable(elfy); 
 		elfy.body.velocity.y = elfVelocity; 
@@ -83,7 +85,7 @@
 		var x = game.rnd.between(0, game.world.width); 
 		var y = helper_getOffscreenY(game);
 
-		var obstacle = game.add.sprite(x, y, 'veggies', 2); 
+		var obstacle = game.add.sprite(x, y, 'banana'); 
 
 		game.physics.arcade.enable(obstacle); 
 		obstacle.body.velocity.y = elfVelocity; 
@@ -129,11 +131,13 @@ WebFontConfig = {
 		// Setup Fonts
 		game.load.script('webfont', '//ajax.googleapis.com/ajax/libs/webfont/1.4.7/webfont.js');
 
-		game.load.image('phaser', 'Images/phaser-dude.png'); 
 		game.load.image('empty-sleigh', 'Images/Empty-Sleigh.png'); 
-		game.load.image('empty-sleigh-small', 'Images/Empty-Sleigh-Small@2x.png'); 
+		game.load.image('empty-sleigh-small', 'Images/Empty-Sleigh-Small@3x.png'); 
+		game.load.image('banana', 'Images/Banana.png'); 
+		game.load.spritesheet('sleigh-sprite', 'Images/Sleigh-Sprite.png', 255, 186); 
+		game.load.spritesheet('elf-sprite', 'Images/Elf-Sprite.png', 129, 140); 
+		game.load.spritesheet('snowflakes', 'Images/snowflakes.png', 17 ,17); 
 
-		game.load.spritesheet('veggies', 'Images/fruitnveg32wh37.png', 32, 32); 
 		game.load.audio('sfx', 'Sounds/fx_mixdown.ogg'); 
 		game.load.audio('magic', 'Sounds/magical_horror_audiosprite.ogg');
 		game.load.audio('sword', 'Sounds/sword.mp3'); 
@@ -257,11 +261,15 @@ WebFontConfig = {
 
 			// Setup Score
 			scoreString = 'Score: '; 
-			scoreText = game.add.text(10, 10, scoreString + elvesKilled, { font: '30px Arial', fill: '#ddd' });
+			scoreText = game.add.text(10, 40, scoreString + elvesKilled, { font: '30px Arial', fill: '#ddd' });
 
 			// Setup Lives
 			livesString = 'Lives: '; 
-			livesText = game.add.text(10, 40, livesString + helper_getCurrentLives(), { font: '30px Arial', fill: '#ddd' }); 
+			livesText = game.add.text(10, 70, livesString + helper_getCurrentLives(), { font: '30px Arial', fill: '#ddd' }); 
+
+			// Setup HiScore 
+			hiScoreString = 'Hi-score: '; 
+			hiScore = game.add.text(10, 10, hiScoreString + '0', {font: '30px Arial', fill: '#ddd' }); 
 
 			// Setup Elves 
 			for (var i = 0; i < MAX_ELVES; i++) {
@@ -277,12 +285,33 @@ WebFontConfig = {
 				obstacles.push(obsy); 
 			}
 
-			sprite = game.add.sprite(game.world.centerX, game.world.height - 200, 'empty-sleigh-small'); 
+			sprite = game.add.sprite(game.world.centerX, game.world.height - 200, 'sleigh-sprite', 0); 
 			sprite.anchor.setTo(0.5, 0.5); 
 			//sprite.scale.setTo(0.6, 0.6); 
 
 			game.physics.arcade.enable(sprite); 
+
+			game.add.tween(sprite.scale).to({x:0.97, y:0.97}, 250, Phaser.Easing.Linear.None, true, 0, Number.MAX_VALUE, true); 
+			// Setup Snow 
+			setupSnow(); 
+
+			// Setup Counter
+			game.time.events.loop(Phaser.Timer.SECOND, secondCounter, this); 
 		}
+	}
+
+	function setupSnow() {
+		var back_emitter = game.add.emitter(game.world.centerX, -32, 600); 
+		back_emitter.makeParticles('snowflakes', [0, 1, 2, 3, 4, 5]); 
+		back_emitter.maxParticleScale = 0.6; 
+		back_emitter.minParticleScale = 0.2; 
+		back_emitter.setYSpeed(300, 500); 
+		back_emitter.setXSpeed(-50, -200); 
+		back_emitter.gravity = 0;
+		back_emitter.width = game.world.width * 1.5; 
+		back_emitter.minRotation = 0;
+		back_emitter.maxRotation = 180; 
+		back_emitter.start(false, 14000, 20); 
 	}
 
 	var mainSlainText; 
@@ -290,8 +319,11 @@ WebFontConfig = {
 	function gameOver() {
 		fxVilhelm.play(); 
 		hasGameStarted = false; 
-		
+
+		elvesKilled = 0; 
+
 		game.add.tween(sprite).to( { alpha: 0 }, 200, Phaser.Easing.Linear.None, true);
+		elfVelocity = 180; 
 
 		if(mainSlainText == null) {
     		var styleButcherman = { font: "100px Butcherman", fill: "#b8182b" };
@@ -313,6 +345,15 @@ WebFontConfig = {
 		obstacles = []; 
 	}
 
+	var sleighRotateTween;
+	var SLEIGH_ROTATE_ANGLE = 15; 
+	var SLEIGH_ROTATE_TIMEOUT = 100; 
+
+	//var sleighRumbleTween; 
+	//var sleighRumbleLeftTween; 
+	//var SLEIGH_RUMBLE_ANGLE = 5; 
+	//var SLEIGH_RUMBLE_TIMEOUT = 40; 
+
 	function update() {
 		if(hasGameStarted) {
 			game.physics.arcade.overlap(sprite, group, collisionHandler, null, this); 
@@ -320,17 +361,47 @@ WebFontConfig = {
 			sprite.body.velocity.x = 0;
 			sprite.body.velocity.y = 0; 
 
-			sprite.angle = 0; 
+			//sprite.angle = 0; 
 
 			if(cursors.left.isDown) 
 			{	
 				sprite.body.velocity.x = -500; 
-				sprite.angle = -5; 
+				if(sleighRotateTween == null || !sleighRotateTween.isRunning) {
+					if(sprite.angle != -SLEIGH_ROTATE_ANGLE) {
+						sleighRotateTween = game.add.tween(sprite).to({angle:-SLEIGH_ROTATE_ANGLE}, SLEIGH_ROTATE_TIMEOUT, Phaser.Easing.Linear.None, true); 
+					}
+				}
 			}
 			else if(cursors.right.isDown) 
 			{	
 				sprite.body.velocity.x = 500; 
-				sprite.angle = 5; 
+				if(sleighRotateTween == null || !sleighRotateTween.isRunning) {
+					if(sprite.angle != SLEIGH_ROTATE_ANGLE) {
+						sleighRotateTween = game.add.tween(sprite).to({angle:SLEIGH_ROTATE_ANGLE}, SLEIGH_ROTATE_TIMEOUT, Phaser.Easing.Linear.None, true); 
+					}
+				}
+				// sprite.angle = 15; 
+			}
+			else 
+			{
+				if(sleighRotateTween == null || !sleighRotateTween.isRunning) {
+					if(sprite.angle != 0) {
+						sleighRotateTween = game.add.tween(sprite).to({angle:0}, SLEIGH_ROTATE_TIMEOUT, Phaser.Easing.Linear.None, true); 
+						// sleighRotateTween.onComplete.add(
+						// .to({angle:0}, SLEIGH_ROTATE_TIMEOUT, Phaser.Easing.Linear.None, true)
+					}
+				}
+				//if(sleighRumbleTween != null) {
+					//console.log(sleighRumbleTween.isRunning); 
+				//}
+				//if(sleighRumbleTween == null || (!sleighRumbleTween.isRunning)) { //&& !sleighRumbleLeftTween.isRunning)) {
+					//console.log("in here... ");
+					//sleighRumbleTween = game.add.tween(sprite)
+						//.to({angle: SLEIGH_RUMBLE_ANGLE}, SLEIGH_RUMBLE_TIMEOUT, Phaser.Easing.Linear.None, true, 0, 0, true); 
+					//sleighRumbleLeftTween = game.add.tween(sprite).to({angle: -SLEIGH_RUMBLE_ANGLE}, SLEIGH_RUMBLE_TIMEOUT, Phaser.Easing.Linear.None, true, 0, 0, true);
+					//sleighRumbleTween.chain(sleighRumbleLeftTween); 
+
+				//}
 			}
 
 			if(cursors.up.isDown) 
@@ -363,7 +434,7 @@ WebFontConfig = {
 			}
 		
 			collidedWith.angle = 90;
-			collidedWith.frame = 10; 
+			//collidedWith.frame = 10; 
 
 			fxMain.play('squit');
 
@@ -377,16 +448,21 @@ WebFontConfig = {
 
 	function killedElf(elf) {
 		if(elves.indexOf(elf) >= 0) {
+			showVikHead(); 
 			elves.splice(elves.indexOf(elf), 1); 
 
 			fxSword.play(); 
 
 			elf.angle = 90; 
-			elf.frame = 11; 
+			elf.frame = 1; 
 
 			elvesKilled++; 
 
 			scoreText.text = scoreString + (elvesKilled * 20);
+			if(elvesKilled * 20 > HI_SCORE) {
+				HI_SCORE = elvesKilled * 20; 
+				hiScore.text = hiScoreString + HI_SCORE; 
+			}
 
 			if(elvesKilled == 10 || 
 				elvesKilled == 15 || 
@@ -404,6 +480,33 @@ WebFontConfig = {
 		for(var i = 0; i < elves.length; i++) {
 			elves[i].body.velocity.y = elfVelocity; 
 		}
+	}
+
+
+	function secondCounter() {
+		if(showingVikHead) {
+			startedShowingVikHeadAt += 1; 
+			if(startedShowingVikHeadAt > 1) {
+				hideVikHead(); 
+			}
+		}
+	}
+
+	var startedShowingVikHeadAt = 0; 
+	var showingVikHead = false; 
+
+	function hideVikHead() {
+		startedShowingVikHeadAt = 0; 
+		showingVikHead = false; 
+
+		sprite.frame = 0;
+	}
+
+	function showVikHead() {
+		startedShowingVikHeadAt = 0; 
+		showingVikHead = true; 
+
+		sprite.frame = 1; 
 	}
 
     </script>
